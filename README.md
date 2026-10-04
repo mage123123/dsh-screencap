@@ -2,7 +2,7 @@
 
 > English | [简体中文](README.zh-CN.md)
 
-**DeepSeek is watching you~** — a little whale that keeps an eye on your screen.
+**DeepSeek is watching you~** (大肥鱼正在看你) — a little whale that keeps an eye on your screen.
 
 A **scheduled screen capture** plugin for DeepSeek Harness: it captures the desktop on an interval in the background, prunes old shots automatically, and lets you toggle it and tune every parameter from the settings page — saving takes effect immediately, with no restart. There is also a **floating widget in the bottom-right corner** that shows the newest shot, copies it to the clipboard, and opens the shot folder without ever opening the settings page.
 
