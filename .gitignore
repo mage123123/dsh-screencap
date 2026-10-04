@@ -1,0 +1,22 @@
+# Dependencies (installed by pnpm, never committed)
+node_modules/
+
+# Packed tarballs — build output, not source
+*.tgz
+
+# Dev-only asar extracts (see tests/extract-deps.mjs); large, machine-specific
+node_modules-asar/
+.asar-deps/
+
+# Editor / OS noise
+.vscode/
+.idea/
+*.code-workspace
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

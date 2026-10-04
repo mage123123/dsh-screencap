@@ -1,0 +1,63 @@
+{
+  "name": "dsh-screencap",
+  "version": "0.4.0",
+  "description": "DeepSeek Harness periodic screenshot plugin: captures the desktop on an interval, prunes old shots, and exposes settings plus a floating corner widget (view latest, copy to clipboard, open folder). Optional capture-triggered inspect wakes the agent with a text-only summary so images never enter the main Session.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./widget": "./widget.js",
+    "./package.json": "./package.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mage123123/dsh-screencap.git"
+  },
+  "homepage": "https://github.com/mage123123/dsh-screencap#readme",
+  "bugs": {
+    "url": "https://github.com/mage123123/dsh-screencap/issues"
+  },
+  "author": "可爱萝莉重度依赖 (mage123123)",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "widget.js",
+    "schedule.js",
+    "capture.ps1",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "screencap",
+    "screenshot"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.18"
+  },
+  "os": [
+    "win32"
+  ],
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.4"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-home-paths": "*",
+    "@deepseek-ai/dsh-tools": "*",
+    "react": "^18.2.0"
+  }
+}

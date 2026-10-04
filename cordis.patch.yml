@@ -1,0 +1,12 @@
+# dsh-screencap — bundle patch layer
+#
+# Declares the plugin as a Cordis loader entry, making the package a standard
+# profile bundle: `dsh plugin --profile desktop add dsh-screencap` installs and
+# mounts it without manual cordis.patch.yml edits.
+#
+# `id` is the settings namespace the plugin owns (the Web UI settings section
+# and the host Config both use it). `name` must be the real package name —
+# cordis imports by `name`.
+- insert:
+    - id: screencap
+      name: 'dsh-screencap'

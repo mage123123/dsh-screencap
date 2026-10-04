@@ -1,0 +1,17 @@
+# Normalise line endings so a clone on Windows and a clone on macOS/Linux
+# produce byte-identical working trees. Without this, Git's core.autocrlf
+# rewrites every file on checkout and the first commit made on another machine
+# shows up as "the whole file changed".
+* text=auto eol=lf
+
+# Windows batch / PowerShell keep CRLF for consistency with the platform.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary-ish assets must never be line-ending translated.
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.ico binary
