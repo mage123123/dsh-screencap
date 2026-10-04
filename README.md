@@ -43,11 +43,28 @@ pnpm add "file:<absolute path to your checkout>"
 
 Then add `dsh-screencap` to the `dsh.profile.bundles` array in that profile's `package.json` — `pnpm add` does not do this for you — and restart DSH.
 
+### Updating to a newer version
+
+⚠️ **Reinstalling does nothing.** `pnpm` pins a git dependency to the commit that was current when it was installed (recorded in `pnpm-lock.yaml`), so running `pnpm install` again just prints `Already up to date` and leaves the old code in place. Force it to re-resolve:
+
+```powershell
+# From the profile directory
+pnpm update dsh-screencap
+```
+
+Or **uninstall and reinstall** through the DSH plugin manager — its uninstall path also clears the pinned entry from the lockfile.
+
+To confirm you actually got the new code, the 40-character hash in the lockfile should equal the repository's current `main`:
+
+```powershell
+Select-String -Path pnpm-lock.yaml -Pattern "dsh-screencap\.git#[0-9a-f]{40}"
+```
+
 ### After installing
 
 Open **Settings → Screenshots** (设置 → 截屏记录). The master switch lives there, and so does every parameter in the table further down. A camera button then appears in the bottom-right corner (see below).
 
-> **Note on updates:** the DSH plugin manager does not auto-update plugins yet. To upgrade, uninstall and install the new version.
+> **Note on updates:** the DSH plugin manager does not auto-update plugins yet, so an upgrade is a manual step either way.
 
 ## Purpose
 

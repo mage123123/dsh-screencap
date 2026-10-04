@@ -43,6 +43,23 @@ pnpm add "file:<你本地 checkout 的绝对路径>"
 
 然后**手动**把 `dsh-screencap` 加进该 profile `package.json` 的 `dsh.profile.bundles` 数组——`pnpm add` 不会自动加——再重启 DSH。
 
+### 更新到新版本
+
+⚠️ **直接重装没用**：`pnpm` 会把 git 依赖**锁定在安装当时的那个 commit**（写进 `pnpm-lock.yaml`），所以再跑 `pnpm install` 只会说 `Already up to date`，代码还是旧的。要用 `update` 强制重新解析：
+
+```powershell
+# 在 profile 目录下执行
+pnpm update dsh-screencap
+```
+
+或者在 DSH 里**先卸载再安装**（插件管理器的卸载会把 lockfile 里的钉死项一并清掉）。
+
+验证是否真的更新了——lockfile 里那串 40 位哈希应该等于仓库当前的 `main`：
+
+```powershell
+Select-String -Path pnpm-lock.yaml -Pattern "dsh-screencap\.git#[0-9a-f]{40}"
+```
+
 ### 装完之后
 
 打开「**设置 → 截屏记录**」。总开关在这里，下面表格里的每个参数也都在这里。之后右下角会出现一个相机按钮（见下）。
