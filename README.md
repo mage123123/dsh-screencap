@@ -4,6 +4,17 @@
 
 A **scheduled screen capture** plugin for DeepSeek Harness: it captures the desktop on an interval in the background, prunes old shots automatically, and lets you toggle it and tune every parameter from the settings page — saving takes effect immediately, with no restart. There is also a **floating widget in the bottom-right corner** that shows the newest shot, copies it to the clipboard, and opens the shot folder without ever opening the settings page.
 
+> **⚠️ Read this before installing: this plugin screenshots your screen.**
+>
+> That is the whole feature, but it has consequences worth knowing up front:
+>
+> - **Shots are written to disk in plain JPEG.** They are not encrypted, not redacted and not sandboxed — they sit under `%DSH_HOME%\screencap\shots\` like any other file. Anything that appears on your screen while the timer fires (chat windows, e-mail, password managers, private documents) can end up in one.
+> - **The agent can read them.** The bundled `screencap_list` / `screencap_latest` / `screencap_capture` tools let the model open a shot and look at it. Whatever it sees becomes part of the conversation it is serving.
+> - **"Wake me after a capture" costs traffic.** With `inspectEnabled` on, every shot triggers a real agent turn. The default instruction deliberately routes the image read through a **subagent** so the picture never enters the main Session — a main-Session image is re-uploaded on every later request. Keep `intervalMinutes` sane and turn `maxWidth` / `quality` down.
+> - **Nothing is uploaded by this plugin.** There is no telemetry and no network call to any server other than the one DSH already talks to; the capture path is a local PowerShell script writing a local file. What leaves your machine is decided by the agent, not by this plugin.
+>
+> Defaults are conservative (`maxWidth: 1600`, `quality: 80`, `keepDays: 3`, `inspectEnabled: false`), but the master switch is `enabled` — if you are not sure, turn it off until you are.
+
 ## Purpose
 
 - Lets the agent "see" what happened on screen: three tools ship with it — `screencap_list` / `screencap_latest` / `screencap_capture` — so the agent can list shots, fetch the newest one, or take one right now.
