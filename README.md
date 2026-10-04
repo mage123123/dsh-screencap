@@ -142,6 +142,38 @@ If you edit `inspectPrompt`, **please keep this rule**. A test in `tests/host-in
 
 > Also remember to turn `maxWidth` / `quality` down (for example `1280` / `75`). At the defaults of `1600` / `80`, a shot of a 2560-wide screen is 1–2 MB; at `1280`/`75` the same frame is about 150–350 KB.
 
+### Writing your own instruction
+
+**Leaving `inspectPrompt` empty is a supported choice** — the plugin then falls back to the built-in instruction, so you do not have to write anything for this feature to work. The settings field is empty by default on purpose: whatever you type there replaces the built-in text entirely, and the built-in text is the one that has the traffic rule baked in.
+
+If you do want your own wording, this is the built-in instruction in full — copy it and edit the tone, keeping the parts marked below:
+
+```text
+【截图巡检】刚拍了一张屏幕截图：{{path}}（{{time}}）。
+请用 subagent 工具派一个子助手去读这张图（让它用 read_image 读），并要求它只回报文字结论：两行以内——第一行说用户在做什么，第二行在学习/上课时补一句有用的知识，否则写「无」。
+你自己不要直接读图：图片一旦进入本会话就会永久留在历史里，之后每次提问都要重传一遍，很费流量。子助手在它自己的会话里读，只把文字带回来。
+拿到文字结论后，用一句话转述给用户，别长篇、别列表。如果是锁屏或黑屏，就说明一句「屏幕锁着/黑着」。
+```
+
+Three things must survive your edit:
+
+| Keep | Why |
+| --- | --- |
+| `{{path}}` and `{{time}}` | The only placeholders the plugin substitutes. Without them the agent never learns which file to read. |
+| The `subagent` + `read_image` instruction | Without it the main agent reads the image directly, and every later request in that Session re-uploads it (see the traffic numbers above). |
+| A sentence forbidding the main agent from reading the image itself | An unexplained "do not read it yourself" gets ignored; say *why* it costs traffic. |
+
+**Everything else is yours to rewrite.** One example: this plugin's own author runs it in a role-played pairing, where the built-in wording addresses the user as「主人」and comments on the shot in character:
+
+```text
+【截图巡检】刚拍了一张屏幕截图：{{path}}（{{time}}）。
+请用 subagent 工具派一个子助手去读这张图（让它用 read_image 读），并要求它只回报文字结论：两行以内——第一行说主人在干什么，第二行在学习/上课时补一句有用的知识，否则写「无」。
+你自己不要直接读图：图片一旦进入本会话就会永久留在历史里，之后每次提问都要重传一遍，很费流量。子助手在它自己的会话里读，只把文字带回来。
+拿到文字结论后，用一句话转述给主人，别长篇、别列表。如果是锁屏或黑屏，就吐槽一句「主人跑哪去了」。
+```
+
+The Settings page field is a plain textarea, so just paste and edit. The prompt is delivered verbatim apart from the two placeholder substitutions.
+
 ### How the message is posted
 
 It calls `sessionController.resolveAgent(sessionId)` to get an agent (**waking a cold Session** if necessary), then `agent.followup(message)` with the message's `source.kind` set to `"schedule"` — that is why the conversation shows it as a scheduled run rather than as something you typed. After posting it calls `sessions.flush(agent.session)` for a write-to-disk acknowledgement, so a crash right after the capture cannot lose that wake-up.
