@@ -229,6 +229,17 @@ test("client defaults mirror the host schema defaults", { skip: SKIP }, async ()
   }
 });
 
+test("the client's built-in instruction is byte-identical to the host's", { skip: SKIP }, async () => {
+  const { exports } = await loadClient();
+  const { DEFAULT_INSPECT_PROMPT } = await import("../index.js");
+  // The browser half carries its own copy so the "fill in the built-in
+  // instruction" button can seed the box without a round trip. That copy is
+  // only correct while it matches the host exactly — a drift would seed the
+  // box with text the Host would never have used, and the missing clause would
+  // be the one that keeps images out of the main Session.
+  assert.equal(exports.__test.DEFAULT_INSPECT_PROMPT, DEFAULT_INSPECT_PROMPT);
+});
+
 test("settingsOpsApplied detects a refused write", { skip: SKIP }, async () => {
   const { exports } = await loadClient();
   const { settingsOpsApplied } = exports.__test;

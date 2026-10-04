@@ -33,6 +33,7 @@ window.__ModuleLoader__.load({
       ".__sc_input{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);font:inherit;color:var(--dsw-alias-label-primary);border-radius:8px;padding:6px 10px;font-size:13px;box-sizing:border-box;width:100%}" +
       ".__sc_input:disabled{opacity:.5}" +
       ".__sc_num{max-width:180px}" +
+      ".__sc_textarea{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.6;resize:vertical;min-height:120px}" +
       ".__sc_row{display:flex;align-items:center;gap:8px}" +
       ".__sc_check{accent-color:var(--dsw-alias-state-business-primary)}" +
       ".__sc_actions{display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap}" +
@@ -73,7 +74,9 @@ window.__ModuleLoader__.load({
       inspectLabel: "每拍一张就唤醒 agent 看一眼",
       inspectHint: "默认关闭。开启后，每次截图成功都会往会话里投一条消息，agent 会读那张图并点评——也就是「拍一张、看一眼」。注意：每张图都会消耗 token，间隔别设太短。",
       inspectPromptLabel: "巡检提示词",
-      inspectPromptHint: "发给 agent 的指令。可用占位符：{{path}} = 图片完整路径，{{time}} = 拍摄时间（ISO 格式）。",
+      inspectPromptHint: "留空 = 用内置指令（推荐新手）。想改的话点下面的「填入内置指令」拿到完整起点再改；必须保留 {{path}}、{{time}} 两个占位符，以及派子助手读图那段——否则图片会进主会话，之后每次提问都要重传，很费流量。",
+      inspectPromptFill: "填入内置指令",
+      inspectPromptFilled: "已填入，可直接编辑",
       inspectSessionLabel: "唤醒哪个会话（留空 = 自动）",
       inspectSessionHint: "留空时：优先选你最近说过话的那个会话；只有唯一一个会话时就用它；都不满足就跳过并记一条日志。填了就必须是完整的 session id。",
       inspectNoTarget: "巡检已开启，但找不到该唤醒的会话，本次已跳过（看日志）。",
@@ -115,7 +118,9 @@ window.__ModuleLoader__.load({
       inspectLabel: "Wake the agent on every capture",
       inspectHint: "Off by default. When on, each successful capture posts a message into a Session so the agent reads that shot and comments. Every shot costs tokens — keep the interval sane.",
       inspectPromptLabel: "Instruction",
-      inspectPromptHint: "What the agent is told. Placeholders: {{path}} = full image path, {{time}} = capture time (ISO).",
+      inspectPromptHint: "Leave empty to use the built-in instruction (the easy option). To change the tone, click \"Fill in the built-in instruction\" below and edit from there. Keep the {{path}} and {{time}} placeholders and the delegation to a subagent — without them the shot enters the main Session and gets re-uploaded on every later request.",
+      inspectPromptFill: "Fill in the built-in instruction",
+      inspectPromptFilled: "Filled in — edit freely",
       inspectSessionLabel: "Session to wake (empty = auto)",
       inspectSessionHint: "When empty: the Session you most recently typed in; failing that, the only live Session; otherwise the shot is skipped and a warning is logged. A value must be a full session id.",
       inspectNoTarget: "Inspect is on but no Session could be chosen; this shot was skipped (see the log).",
@@ -184,6 +189,23 @@ window.__ModuleLoader__.load({
         return settingsOpsApplied(scope.getSnapshot(), ops);
       });
     }
+
+    /**
+     * The host's built-in inspect instruction, mirrored verbatim.
+     *
+     * The settings box starts empty and an empty box is legal — the host falls
+     * back to this text. Offering it as a "fill it in" button is what makes the
+     * field usable at all: a reader who wants a different tone has no way to
+     * guess the required delegation clauses, and a wrong guess silently costs
+     * tokens on every capture from then on.
+     *
+     * `tests/client-smoke.test.mjs` pins this against the host's export, so the
+     * two copies cannot drift.
+     */
+    var DEFAULT_INSPECT_PROMPT = "【截图巡检】刚拍了一张屏幕截图：{{path}}（{{time}}）。\n"
+      + "请用 subagent 工具派一个子助手去读这张图（让它用 read_image 读），并要求它只回报文字结论：两行以内——第一行说用户在做什么，第二行在学习/上课时补一句有用的知识，否则写「无」。\n"
+      + "你自己不要直接读图：图片一旦进入本会话就会永久留在历史里，之后每次提问都要重传一遍，很费流量。子助手在它自己的会话里读，只把文字带回来。\n"
+      + "拿到文字结论后，用一句话转述给用户，别长篇、别列表。如果是锁屏或黑屏，就说明一句「屏幕锁着/黑着」。";
 
     /** Effective defaults, mirroring the host schema. */
     var DEFAULTS = {
@@ -389,6 +411,41 @@ window.__ModuleLoader__.load({
         );
       }
 
+      /**
+       * The inspect instruction: a multi-line box plus a button that seeds it
+       * with the built-in text.
+       *
+       * The button is the point. A reader who wants their own wording otherwise
+       * has to retype a paragraph whose exact clauses matter, and getting one
+       * wrong is silent — it only shows up later as token traffic. Seeding the
+       * box with known-good text turns "write a prompt" into "edit a prompt".
+       */
+      function promptField() {
+        var filled = String(fieldValue("inspectPrompt") == null ? "" : fieldValue("inspectPrompt")) !== "";
+        return h("label", { className: "__sc_field", key: "inspectPrompt" },
+          h("span", { className: "__sc_label" }, t("inspectPromptLabel")),
+          h("span", { className: "__sc_hint" }, t("inspectPromptHint")),
+          h("textarea", {
+            className: "__sc_input __sc_textarea",
+            rows: 7,
+            spellCheck: false,
+            placeholder: "【截图巡检】刚拍了一张：{{path}}（{{time}}）……",
+            value: String(fieldValue("inspectPrompt") == null ? "" : fieldValue("inspectPrompt")),
+            disabled: busy,
+            onChange: function (e) { setField("inspectPrompt", e.target.value); }
+          }),
+          h("div", { className: "__sc_row" },
+            h("button", {
+              type: "button",
+              className: "__sc_btn",
+              disabled: busy,
+              onClick: function () { setField("inspectPrompt", DEFAULT_INSPECT_PROMPT); }
+            }, t("inspectPromptFill")),
+            filled ? h("span", { className: "__sc_status" }, t("inspectPromptFilled")) : null
+          )
+        );
+      }
+
       return h("div", { className: "__sc_root" },
         h("p", { className: "__sc_hint", style: { margin: "0 0 4px" } }, t("intro")),
 
@@ -420,8 +477,7 @@ window.__ModuleLoader__.load({
         h("div", { className: "__sc_group" },
           h("p", { className: "__sc_label", style: { margin: 0 } }, t("inspectTitle")),
           checkbox("inspectEnabled", "inspectLabel", "inspectHint"),
-          textField("inspectPrompt", "inspectPromptLabel", "inspectPromptHint",
-            "【截图巡检】刚拍了一张：{{path}}（{{time}}）……"),
+          promptField(),
           textField("inspectSessionId", "inspectSessionLabel", "inspectSessionHint",
             "session-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
         ),
@@ -470,7 +526,12 @@ window.__ModuleLoader__.load({
 
     exports.apply = apply;
     exports.inject = inject;
-    exports.__test = { validActiveHours: validActiveHours, settingsOpsApplied: settingsOpsApplied, DEFAULTS: DEFAULTS };
+    exports.__test = {
+      validActiveHours: validActiveHours,
+      settingsOpsApplied: settingsOpsApplied,
+      DEFAULTS: DEFAULTS,
+      DEFAULT_INSPECT_PROMPT: DEFAULT_INSPECT_PROMPT,
+    };
     return module.exports;
   }
 });
