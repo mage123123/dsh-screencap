@@ -1,6 +1,8 @@
-# dsh-screencap
+# dsh-screencap 🐋
 
 > [English](README.md) | 简体中文
+
+**鲸眼** —— 让一只鲸替你盯着屏幕。
 
 DeepSeek Harness 的**定时截屏**插件：后台按间隔自动截屏，旧图自动清理，设置页里随时开关和调参，保存即生效（不用重启）。另有一个**右下角浮动挂件**，不用进设置页就能看最新截图、复制到剪贴板、打开文件夹。
 
@@ -14,6 +16,38 @@ DeepSeek Harness 的**定时截屏**插件：后台按间隔自动截屏，旧�
 > - **本插件不上传任何东西**。没有遥测，除了 DSH 本来就在通信的服务端之外不向任何服务器发请求；截屏这条链路就是一个本地 PowerShell 脚本往本地写文件。什么内容会离开你的机器，是由 agent 决定的，不是这个插件。
 >
 > 默认值已经偏保守（`maxWidth: 1600`、`quality: 80`、`keepDays: 3`、`inspectEnabled: false`），但总开关是 `enabled`——拿不准就先关着。
+
+## 安装
+
+前置条件：**Windows 10 1703 或更新版本 / 任意 Windows 11**，以及一个 DeepSeek Harness 桌面版 profile（设置页和挂件需要 Web 界面）。
+
+### 从 GitHub 安装（就是本仓库）
+
+1. 在左侧栏点「**插件**」，再点「**添加插件**」。
+2. 在「**包名或地址**」输入框里粘贴：
+
+   ```
+   github:mage123123/dsh-screencap
+   ```
+
+3. 点「**安装**」，然后重启 DSH。
+
+DSH 的插件管理器直接认这种 git 简写，不用手动 clone，也不用 `pnpm pack`。
+
+### 从本地目录安装（开发用）
+
+```powershell
+# 在 profile 目录下执行（例如 %USERPROFILE%\.dsh\profiles\desktop）
+pnpm add "file:<你本地 checkout 的绝对路径>"
+```
+
+然后**手动**把 `dsh-screencap` 加进该 profile `package.json` 的 `dsh.profile.bundles` 数组——`pnpm add` 不会自动加——再重启 DSH。
+
+### 装完之后
+
+打开「**设置 → 截屏记录**」。总开关在这里，下面表格里的每个参数也都在这里。之后右下角会出现一个相机按钮（见下）。
+
+> **关于升级**：DSH 插件管理器目前不支持自动更新插件。要升级请先卸载再装新版。
 
 ## 用途
 

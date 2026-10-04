@@ -1,7 +1,7 @@
 {
   "name": "dsh-screencap",
   "version": "0.4.0",
-  "description": "DeepSeek Harness periodic screenshot plugin: captures the desktop on an interval, prunes old shots, and exposes settings plus a floating corner widget (view latest, copy to clipboard, open folder). Optional capture-triggered inspect wakes the agent with a text-only summary so images never enter the main Session.",
+  "description": "Whale Eye (鲸眼) — DeepSeek Harness periodic screenshot plugin: captures the desktop on an interval, prunes old shots, and exposes settings plus a floating corner widget (view latest, copy to clipboard, open folder). Optional capture-triggered inspect wakes the agent with a text-only summary so images never enter the main Session. Windows only.",
   "type": "module",
   "main": "index.js",
   "exports": {

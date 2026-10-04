@@ -1,6 +1,8 @@
-# dsh-screencap
+# dsh-screencap 🐋
 
 > English | [简体中文](README.zh-CN.md)
+
+**Whale Eye** (*Jīngyǎn*, 鲸眼) — a little whale that keeps an eye on your screen.
 
 A **scheduled screen capture** plugin for DeepSeek Harness: it captures the desktop on an interval in the background, prunes old shots automatically, and lets you toggle it and tune every parameter from the settings page — saving takes effect immediately, with no restart. There is also a **floating widget in the bottom-right corner** that shows the newest shot, copies it to the clipboard, and opens the shot folder without ever opening the settings page.
 
@@ -14,6 +16,38 @@ A **scheduled screen capture** plugin for DeepSeek Harness: it captures the desk
 > - **Nothing is uploaded by this plugin.** There is no telemetry and no network call to any server other than the one DSH already talks to; the capture path is a local PowerShell script writing a local file. What leaves your machine is decided by the agent, not by this plugin.
 >
 > Defaults are conservative (`maxWidth: 1600`, `quality: 80`, `keepDays: 3`, `inspectEnabled: false`), but the master switch is `enabled` — if you are not sure, turn it off until you are.
+
+## Install
+
+Requirements: **Windows 10 1703+ or any Windows 11**, and a DeepSeek Harness desktop profile (the plugin needs the web UI for its settings page and widget).
+
+### From GitHub (this repository)
+
+1. Click **Plugins** (插件) in the left sidebar, then click **Add plugin** (添加插件).
+2. In the **Package name or address** (包名或地址) field, paste:
+
+   ```
+   github:mage123123/dsh-screencap
+   ```
+
+3. Click **Install** (安装), then restart DSH.
+
+The DSH plugin manager understands git shorthands directly, so no manual clone or `pnpm pack` is needed.
+
+### From a local checkout (for development)
+
+```powershell
+# From the profile directory (e.g. %USERPROFILE%\.dsh\profiles\desktop)
+pnpm add "file:<absolute path to your checkout>"
+```
+
+Then add `dsh-screencap` to the `dsh.profile.bundles` array in that profile's `package.json` — `pnpm add` does not do this for you — and restart DSH.
+
+### After installing
+
+Open **Settings → Screenshots** (设置 → 截屏记录). The master switch lives there, and so does every parameter in the table further down. A camera button then appears in the bottom-right corner (see below).
+
+> **Note on updates:** the DSH plugin manager does not auto-update plugins yet. To upgrade, uninstall and install the new version.
 
 ## Purpose
 
