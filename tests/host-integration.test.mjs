@@ -284,6 +284,7 @@ test("the widget routes are registered under the plugin prefix", { skip: SKIP },
   assert.deepEqual(paths, [
     "/dsh-screencap/latest.jpg",
     "/dsh-screencap/open-folder.json",
+    "/dsh-screencap/sessions.json",
     "/dsh-screencap/settings.json",
     "/dsh-screencap/shoot.json",
     "/dsh-screencap/status.json",
@@ -304,6 +305,61 @@ test("a profile without a webserver still loads the plugin", { skip: SKIP }, asy
   apply(ctx, { enabled: true, intervalMinutes: 30, keepDays: 3, activeHours: "" });
   assert.equal(ctx._tools.length, 3, "tools must still register");
   assert.ok(ctx._listeners.some((l) => l.event === "webserver/index-inject"));
+});
+
+test("sessions.json feeds the picker: titles, no subagents, no blanks", { skip: SKIP }, async () => {
+  const { apply } = await import("../index.js");
+  const ctx = makeCtx({
+    sessionController: {
+      list: async () => ({
+        items: [
+          { sessionId: "session-aaa", updatedAt: 300, running: true, blank: false, projections: { values: { title: "英语单词课" } } },
+          // A subagent conversation must never be offered as a target.
+          { sessionId: "child-bbb", updatedAt: 900, running: false, blank: false, parentSessionId: "session-aaa" },
+          // A blank session has no conversation to show yet.
+          { sessionId: "session-ccc", updatedAt: 800, running: false, blank: true },
+          { sessionId: "session-ddd", updatedAt: 100, running: false, blank: false },
+        ],
+      }),
+    },
+  });
+  apply(ctx, { enabled: true, intervalMinutes: 30, keepDays: 3, activeHours: "" });
+  const out = await callRoute(ctx, "/dsh-screencap/sessions.json");
+
+  assert.equal(out.status, 200);
+  assert.equal(out.json.ok, true);
+  assert.deepEqual(out.json.sessions.map((s) => s.id), ["session-aaa", "session-ddd"]);
+  assert.equal(out.json.sessions[0].title, "英语单词课");
+  assert.equal(out.json.sessions[0].running, true);
+  // A missing title stays empty rather than inventing an id-shaped label: the
+  // browser half decides how to shorten it.
+  assert.equal(out.json.sessions[1].title, "");
+});
+
+test("sessions.json degrades to an empty list when the profile has no controller", { skip: SKIP }, async () => {
+  const { apply } = await import("../index.js");
+  const ctx = makeCtx();
+  apply(ctx, { enabled: true, intervalMinutes: 30, keepDays: 3, activeHours: "" });
+  const out = await callRoute(ctx, "/dsh-screencap/sessions.json");
+
+  // 200 with an empty list, never a 5xx: the browser half falls back to a text box.
+  assert.equal(out.status, 200);
+  assert.equal(out.json.ok, true);
+  assert.deepEqual(out.json.sessions, []);
+});
+
+test("sessions.json survives a controller failure without breaking the section", { skip: SKIP }, async () => {
+  const { apply } = await import("../index.js");
+  const ctx = makeCtx({
+    sessionController: { list: async () => { throw new Error("persistence offline"); } },
+  });
+  apply(ctx, { enabled: true, intervalMinutes: 30, keepDays: 3, activeHours: "" });
+  const out = await callRoute(ctx, "/dsh-screencap/sessions.json");
+
+  assert.equal(out.status, 200);
+  assert.equal(out.json.ok, false);
+  assert.deepEqual(out.json.sessions, []);
+  assert.ok(ctx._logs.some((l) => l.level === "warn" && l.text.includes("sessions.json failed")));
 });
 
 test("status.json reports settings, counts and the newest shot", { skip: SKIP }, async () => {

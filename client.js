@@ -23,6 +23,8 @@ window.__ModuleLoader__.load({
     var SETTINGS_NS = "screencap";
     /** Locale dictionary namespace for this section. */
     var LOCALE_NS = "screencapUi";
+    /** URL prefix of the host-half routes this bundle reads. */
+    var ROUTE_PREFIX = "/dsh-screencap";
 
     // ── CSS (theme tokens) ────────────────────────────────────────────────
     var CSS = ".__sc_root{max-width:640px;display:flex;flex-direction:column;gap:10px}" +
@@ -42,6 +44,11 @@ window.__ModuleLoader__.load({
       ".__sc_btn:disabled{opacity:.5;cursor:default}" +
       ".__sc_btnPrimary{border-color:var(--dsw-alias-state-business-primary, #3964fe);background:var(--dsw-alias-state-business-primary, #3964fe);color:#fff}" +
       ".__sc_status{font-size:12px;color:var(--dsw-alias-label-tertiary)}" +
+      ".__sc_select{appearance:none;cursor:pointer}" +
+      ".__sc_select:disabled{cursor:default}" +
+      ".__sc_sessionRow{display:flex;gap:8px;align-items:center}" +
+      ".__sc_sessionRow .__sc_input{flex:1 1 auto}" +
+      ".__sc_sessionRow .__sc_btn{flex:0 0 auto;white-space:nowrap}" +
       ".__sc_error{font-size:12px;color:var(--dsw-alias-state-error-primary)}" +
       ".__sc_unavailable{font-size:13px;color:var(--dsw-alias-label-tertiary)}";
     var tagId = "dsh-screencap/main.css";
@@ -77,8 +84,13 @@ window.__ModuleLoader__.load({
       inspectPromptHint: "留空 = 用内置指令（推荐新手）。想改的话点下面的「填入内置指令」拿到完整起点再改；必须保留 {{path}}、{{time}} 两个占位符，以及派子助手读图那段——否则图片会进主会话，之后每次提问都要重传，很费流量。",
       inspectPromptFill: "填入内置指令",
       inspectPromptFilled: "已填入，可直接编辑",
-      inspectSessionLabel: "唤醒哪个会话（留空 = 自动）",
-      inspectSessionHint: "留空时：优先选你最近说过话的那个会话；只有唯一一个会话时就用它；都不满足就跳过并记一条日志。填了就必须是完整的 session id。",
+      inspectSessionLabel: "唤醒哪个会话",
+      inspectSessionHint: "巡检消息会出现在这个会话里。默认「自动跟随」= 你最近说过话的那个会话——开新对话后它会自动跟过去，不用改设置。",
+      inspectSessionAuto: "自动跟随（推荐）",
+      inspectSessionOther: "手动输入 id",
+      inspectSessionRefresh: "刷新列表",
+      inspectSessionLoading: "正在读取会话列表…",
+      inspectSessionEmpty: "没读到会话列表，用下面的框手动填 id。",
       inspectNoTarget: "巡检已开启，但找不到该唤醒的会话，本次已跳过（看日志）。",
       imageTitle: "图片参数",
       maxWidthLabel: "最大宽度（像素）",
@@ -121,8 +133,13 @@ window.__ModuleLoader__.load({
       inspectPromptHint: "Leave empty to use the built-in instruction (the easy option). To change the tone, click \"Fill in the built-in instruction\" below and edit from there. Keep the {{path}} and {{time}} placeholders and the delegation to a subagent — without them the shot enters the main Session and gets re-uploaded on every later request.",
       inspectPromptFill: "Fill in the built-in instruction",
       inspectPromptFilled: "Filled in — edit freely",
-      inspectSessionLabel: "Session to wake (empty = auto)",
-      inspectSessionHint: "When empty: the Session you most recently typed in; failing that, the only live Session; otherwise the shot is skipped and a warning is logged. A value must be a full session id.",
+      inspectSessionLabel: "Session to wake",
+      inspectSessionHint: "Inspect messages appear in this Session. \"Follow automatically\" (the default) uses the Session you most recently typed in, so a new conversation is picked up without touching this setting.",
+      inspectSessionAuto: "Follow automatically (recommended)",
+      inspectSessionOther: "Type an id",
+      inspectSessionRefresh: "Refresh list",
+      inspectSessionLoading: "Reading the Session list…",
+      inspectSessionEmpty: "Could not read the Session list — type an id in the box below.",
       inspectNoTarget: "Inspect is on but no Session could be chosen; this shot was skipped (see the log).",
       imageTitle: "Image",
       maxWidthLabel: "Max width (px)",
@@ -258,6 +275,37 @@ window.__ModuleLoader__.load({
       var writePending = react.useRef(false);
       var [notice, setNotice] = react.useState(null);
       var [error, setError] = react.useState(null);
+      /**
+       * Session picker state.
+       *
+       * `list` is the host's recent-conversation list, `state` tracks the read
+       * so the field can say what it is doing, and `manual` reveals the raw id
+       * box when the reader wants an id the list does not offer (or when the
+       * list could not be read at all).
+       */
+      var [sessions, setSessions] = react.useState([]);
+      var [sessionsState, setSessionsState] = react.useState("idle");
+      var [manual, setManual] = react.useState(false);
+
+      function loadSessions() {
+        setSessionsState("loading");
+        fetch(ROUTE_PREFIX + "/sessions.json", { credentials: "same-origin", cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)); })
+          .then(function (data) {
+            setSessions(Array.isArray(data && data.sessions) ? data.sessions : []);
+            setSessionsState("ready");
+          })
+          .catch(function () {
+            setSessions([]);
+            setSessionsState("error");
+          });
+      }
+
+      react.useEffect(function () {
+        // Read once on mount. The list is only a convenience for the picker, so
+        // a failure degrades to the raw id box instead of blocking the section.
+        loadSessions();
+      }, []);
 
       react.useEffect(function () {
         // No refresh call: reads ride the shared describe mirror, which re-reads
@@ -395,22 +443,6 @@ window.__ModuleLoader__.load({
         );
       }
 
-      /** One free-text field, saved with the Save button (not on every keystroke). */
-      function textField(key, labelKey, hintKey, placeholder) {
-        return h("label", { className: "__sc_field", key: key },
-          h("span", { className: "__sc_label" }, t(labelKey)),
-          h("span", { className: "__sc_hint" }, t(hintKey)),
-          h("input", {
-            className: "__sc_input",
-            type: "text",
-            placeholder: placeholder || "",
-            value: String(fieldValue(key) == null ? "" : fieldValue(key)),
-            disabled: busy,
-            onChange: function (e) { setField(key, e.target.value); }
-          })
-        );
-      }
-
       /**
        * The inspect instruction: a multi-line box plus a button that seeds it
        * with the built-in text.
@@ -446,6 +478,69 @@ window.__ModuleLoader__.load({
         );
       }
 
+      /**
+       * Which conversation receives the inspect message.
+       *
+       * A dropdown, not a text box, because the stored value is a raw session id
+       * and the interesting question ("which conversation?") is one only the
+       * host can answer. "Follow automatically" writes an empty value, which is
+       * the host's auto tier — that is the entry a new conversation needs, and
+       * it is what keeps a fresh conversation picked up without editing this
+       * setting again.
+       *
+       * A stored id that is not in the list (an older conversation, another
+       * profile) is kept as its own option so opening the page and pressing Save
+       * never silently rewrites the setting.
+       */
+      function sessionPicker() {
+        var storedId = String(fieldValue("inspectSessionId") == null ? "" : fieldValue("inspectSessionId")).trim();
+        var known = sessions.some(function (s) { return s.id === storedId; });
+        var showManual = manual || sessionsState === "error" || (storedId !== "" && !known);
+        var options = [h("option", { value: "", key: "" }, t("inspectSessionAuto"))];
+        sessions.forEach(function (s) {
+          var label = s.title !== "" ? s.title : s.id.slice(0, 18) + "…";
+          options.push(h("option", { value: s.id, key: s.id }, s.running ? "● " + label : label));
+        });
+        if (storedId !== "" && !known) {
+          options.push(h("option", { value: storedId, key: storedId }, storedId.slice(0, 18) + "…"));
+        }
+        return h("label", { className: "__sc_field", key: "inspectSessionId" },
+          h("span", { className: "__sc_label" }, t("inspectSessionLabel")),
+          h("span", { className: "__sc_hint" }, t("inspectSessionHint")),
+          h("div", { className: "__sc_sessionRow" },
+            h("select", {
+              className: "__sc_input __sc_select",
+              value: storedId,
+              disabled: busy,
+              onChange: function (e) { setField("inspectSessionId", e.target.value); }
+            }, options),
+            h("button", {
+              type: "button",
+              className: "__sc_btn",
+              disabled: busy || sessionsState === "loading",
+              onClick: function () { loadSessions(); }
+            }, sessionsState === "loading" ? t("inspectSessionLoading") : t("inspectSessionRefresh"))
+          ),
+          h("div", { className: "__sc_row" },
+            h("button", {
+              type: "button",
+              className: "__sc_btn",
+              disabled: busy,
+              onClick: function () { setManual(!showManual); }
+            }, t("inspectSessionOther"))
+          ),
+          showManual ? h("input", {
+            className: "__sc_input",
+            type: "text",
+            placeholder: "session-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+            value: storedId,
+            disabled: busy,
+            onChange: function (e) { setField("inspectSessionId", e.target.value); }
+          }) : null,
+          sessionsState === "error" ? h("span", { className: "__sc_hint" }, t("inspectSessionEmpty")) : null
+        );
+      }
+
       return h("div", { className: "__sc_root" },
         h("p", { className: "__sc_hint", style: { margin: "0 0 4px" } }, t("intro")),
 
@@ -478,8 +573,7 @@ window.__ModuleLoader__.load({
           h("p", { className: "__sc_label", style: { margin: 0 } }, t("inspectTitle")),
           checkbox("inspectEnabled", "inspectLabel", "inspectHint"),
           promptField(),
-          textField("inspectSessionId", "inspectSessionLabel", "inspectSessionHint",
-            "session-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+          sessionPicker()
         ),
 
         h("div", { className: "__sc_group" },

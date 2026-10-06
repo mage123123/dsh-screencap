@@ -49,6 +49,10 @@ function makeReactStub() {
  */
 function renderToJson(node, react, depth = 0) {
   if (node === null || node === undefined || typeof node !== "object") return node;
+  // React flattens an array passed as children (the usual `items.map(...)`
+  // shape), so the stub must too — otherwise a list rendered from a dynamically
+  // built array would silently vanish and the test would pass vacuously.
+  if (Array.isArray(node)) return node.map((child) => renderToJson(child, react, depth));
   if (typeof node.type === "function") {
     if (depth > 12) throw new Error("render depth exceeded — possible component loop");
     const savedCursor = react.__hooks.cursor;
@@ -190,6 +194,44 @@ test("the section component builds a tree without throwing", { skip: SKIP }, asy
   // And the staged values must reach the inputs, not the defaults.
   assert.ok(text.includes("22:00-06:00"), "the stored activeHours value must be shown");
   assert.ok(text.includes("\"type\":\"checkbox\""), "the enable switch must render as a checkbox");
+});
+
+test("the Session picker is a dropdown whose first option is \"follow automatically\"", { skip: SKIP }, async () => {
+  const { registrations, ctx, react } = await loadClient({
+    snapshot: { status: "ready", revision: 1, user: {}, value: { inspectSessionId: "" } },
+  });
+  const contribution = registrations.find((r) => r.name === "settings.section").register();
+  const tree = contribution.Component({
+    t: ctx.locale.bind("screencapUi"),
+    scope: ctx.configForms.get("screencap"),
+  });
+  const rendered = renderToJson(tree, react);
+  const text = JSON.stringify(rendered);
+
+  // A raw id box is exactly what a non-technical reader cannot fill in, so the
+  // field must be a select. The empty value is the host's auto tier.
+  assert.ok(text.includes("\"type\":\"select\""), "inspectSessionId must render as a select");
+  assert.ok(text.includes("inspectSessionAuto"), "the auto option must be offered");
+  // With an empty stored value there is nothing to preserve, so no manual box.
+  assert.ok(!text.includes("session-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"), "no manual id box when the list is enough");
+});
+
+test("a stored Session id absent from the list is kept as its own option", { skip: SKIP }, async () => {
+  // Opening the settings page and pressing Save must never silently rewrite a
+  // stored id just because this profile's list did not mention it.
+  const { registrations, ctx, react } = await loadClient({
+    snapshot: { status: "ready", revision: 1, user: {}, value: { inspectSessionId: "session-old-not-listed" } },
+  });
+  const contribution = registrations.find((r) => r.name === "settings.section").register();
+  const tree = contribution.Component({
+    t: ctx.locale.bind("screencapUi"),
+    scope: ctx.configForms.get("screencap"),
+  });
+  const text = JSON.stringify(renderToJson(tree, react));
+
+  assert.ok(text.includes("session-old-not-listed"), "the stored id must stay selectable");
+  // An unknown id also reveals the manual box so it can be corrected by hand.
+  assert.ok(text.includes("session-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"), "an unknown id must stay editable");
 });
 
 test("an unavailable namespace renders the unavailable notice", { skip: SKIP }, async () => {

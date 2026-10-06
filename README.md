@@ -135,7 +135,7 @@ Change these in **Settings → Screenshots**; after saving they take effect on t
 | `idleSeconds` | `60` | The "in use" threshold in seconds: keyboard or mouse input within the last this many seconds counts as in use. |
 | `inspectEnabled` | `false` | **Wake me after a capture**: wake the agent to look at the shot after every successful capture. See the next section. |
 | `inspectPrompt` | (built-in Chinese instruction) | The instruction sent to the agent for the inspection; supports the `{{path}}` / `{{time}}` placeholders. |
-| `inspectSessionId` | `""` | Which Session to wake. Empty = automatic (see below). |
+| `inspectSessionId` | `""` | Which Session to wake. Rendered as a **dropdown**; the default entry is "Follow automatically" (= empty). See below. |
 
 Every numeric value is **clamped to its legal range** when it is read (a hand-broken settings.yaml will not crash anything), and an illegal value falls back to the default.
 
@@ -199,7 +199,14 @@ It goes through the same entry point as `dsh-schedule` / `dsh-webhook`.
 
 ### Which Session gets woken
 
-In priority order:
+This setting is a **dropdown**, so no id ever has to be typed:
+
+- **Follow automatically (recommended)** = empty. The review follows the **Session you most recently spoke in**, so a new conversation is picked up on its own without returning to this page.
+- The entries below it are the recent conversations the host reported (labelled with their titles; a leading `●` marks a conversation that is running). Pick one to pin the review there.
+- **Refresh list**: conversation titles are generated asynchronously, so a just-opened conversation may be nameless for a moment — press it to re-read.
+- To use an id the list does not offer (an older conversation, another profile), press "Type an id" to reveal the raw box. A set id wins outright; a delivery to a bad id only logs a warning.
+
+With the automatic choice, the host resolves in priority order:
 
 1. `inspectSessionId` is set → use it (it must be a full session id).
 2. Otherwise the **Session you most recently spoke in** (tracked from `api-session/activity`; that event only fires for messages with `source.kind === "user"`, so the plugin's own deliveries cannot skew it).
@@ -207,7 +214,9 @@ In priority order:
 4. Otherwise, if there is exactly **one** top-level agent → use it.
 5. If none of the above holds → **skip and log a warning**; no guessing. The shot is still on disk.
 
-Subagent conversations are skipped at tier 3: a shot review belongs in the conversation you are looking at, not inside some background subtask.
+Subagent conversations — and blank ones that have no conversation to show yet — are skipped: a shot review belongs in the conversation you are looking at, not inside some background subtask.
+
+The dropdown is fed by the host route `GET /dsh-screencap/sessions.json` (up to 30 recent top-level conversations with `id`, title, and running state). When that read fails the route answers with an empty list and the field falls back to the raw id box — the settings page never blocks on it.
 
 Better to stay silent this time than to wake the wrong one.
 

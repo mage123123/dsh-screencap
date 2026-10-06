@@ -876,6 +876,48 @@ function apply(ctx, config) {
       }));
     });
 
+    // Recent conversations, for the settings-page picker.
+    //
+    // The picker exists because `inspectSessionId` is a bare session id: without
+    // it the only usable value is "empty" (= auto), and a hand-typed id is
+    // exactly the kind of field a non-technical reader cannot fill in. Titles
+    // come from the same list projection the sidebar renders, so the dropdown
+    // shows what the reader already recognizes.
+    //
+    // A failure is reported as `ok:false` with an empty list rather than an HTTP
+    // error: the browser half falls back to a plain text box, which still works.
+    route("exact", `${ROUTE_PREFIX}/sessions.json`, async (_req, res) => {
+      const controller = service("sessionController");
+      if (controller === undefined || controller === null || typeof controller.list !== "function") {
+        res.writeHead(200, JSON_HEADERS);
+        res.end(JSON.stringify({ ok: true, sessions: [], auto: null, reason: "no session controller in this profile" }));
+        return;
+      }
+      try {
+        const { items } = await controller.list({});
+        const sessions = (items ?? [])
+          // Subagent sessions are not conversations the human can look at.
+          .filter((item) => item !== null && typeof item === "object" && item.parentSessionId === undefined)
+          .filter((item) => item.blank !== true)
+          .map((item) => {
+            const title = item.projections?.values?.title;
+            return {
+              id: String(item.sessionId),
+              title: typeof title === "string" ? title : "",
+              updatedAt: Number(item.updatedAt) || 0,
+              running: item.running === true,
+            };
+          })
+          .slice(0, 30);
+        res.writeHead(200, JSON_HEADERS);
+        res.end(JSON.stringify({ ok: true, sessions, auto: lastHumanSession }));
+      } catch (error) {
+        ctx.logger.warn(`[screencap] sessions.json failed: ${String(error)}`);
+        res.writeHead(200, JSON_HEADERS);
+        res.end(JSON.stringify({ ok: false, sessions: [], auto: null, error: String((error && error.message) || error) }));
+      }
+    });
+
     // The newest shot's bytes, as a real image response the page can fetch.
     // `?file=` is validated against the on-disk listing, never joined blindly.
     route("exact", `${ROUTE_PREFIX}/latest.jpg`, async (req, res) => {

@@ -135,7 +135,7 @@ Select-String -Path pnpm-lock.yaml -Pattern "dsh-screencap\.git#[0-9a-f]{40}"
 | `idleSeconds` | `60` | 「正在使用」的判定阈值（秒）：最近这么多秒内有键鼠输入就算在用。 |
 | `inspectEnabled` | `false` | **拍完自动叫我**：每次截图成功后唤醒 agent 看一眼。见下节。 |
 | `inspectPrompt` | （内置中文指令） | 巡检时发给 agent 的指令，支持 `{{path}}` / `{{time}}` 占位符。 |
-| `inspectSessionId` | `""` | 唤醒哪个 Session。留空 = 自动（见下）。 |
+| `inspectSessionId` | `""` | 唤醒哪个 Session。设置页里是个**下拉菜单**，默认选「自动跟随（推荐）」（= 留空）。见下节。 |
 
 所有数值在读取时都会被**夹到合法范围**（settings.yaml 被手改坏也不会崩），非法值回落到默认。
 
@@ -199,7 +199,14 @@ Select-String -Path pnpm-lock.yaml -Pattern "dsh-screencap\.git#[0-9a-f]{40}"
 
 ### 唤醒哪个 Session
 
-按优先级：
+设置页里这一项是**下拉菜单**，不用手打 id：
+
+- **自动跟随（推荐）** = 留空。巡检会跟着你**最近说过话的那个会话**走，所以开新对话后它会自动跟过去，不用回来改设置。
+- 下面几项是宿主读到的最近会话（显示会话标题；前面带 `●` 的是正在运行的那个）。点一下就能固定到某个会话。
+- **刷新列表**：会话标题是异步生成的，刚开的对话可能要过一会儿才有名字——点它重读。
+- 想填列表里没有的 id（老会话、别的 profile），点「手动输入 id」展开输入框。填了不存在的 id 会怎样？第 1 层直接用，投递失败只记 warning。
+
+选「自动跟随」时，主机端按优先级解析：
 
 1. `inspectSessionId` 填了 → 就用它（必须是完整 session id）。
 2. 否则用**你最近说过话的那个 Session**（从 `api-session/activity` 跟踪；该事件只对 `source.kind === "user"` 的消息发出，所以插件自己的投递不会把它带偏）。
@@ -207,7 +214,9 @@ Select-String -Path pnpm-lock.yaml -Pattern "dsh-screencap\.git#[0-9a-f]{40}"
 4. 否则，如果**当前只有一个**顶层 agent → 用它。
 5. 都不满足 → **跳过并记一条 warning**，不猜。截的图仍在磁盘上。
 
-子会话（subagent）在第 3 层会被跳过：截图点评应该落在你正在看的那个对话里，而不是某个后台子任务里。
+子会话（subagent）和第 3 层里**空会话**（还没开始对话的）会被跳过：截图点评应该落在你正在看的那个对话里，而不是某个后台子任务里。
+
+下拉列表由宿主路由 `GET /dsh-screencap/sessions.json` 提供（返回最近 30 个顶层会话的 `id` / 标题 / 是否运行中）。读不到时返回空列表，界面自动退回手动输入框——**不会**因此卡住设置页。
 
 宁可这次不叫，也不叫错人。
 
